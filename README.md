@@ -22,7 +22,9 @@ Create host for managing your sandbox
 Find and copy IP address of `master` droplet: `Control panel > Droplets`  
 Login to host `master`
 
-<pre><code>ssh root@<\code><i><code>IP-address<\code><\i><\pre>
+<pre>
+<code>ssh root@</code><em><code><IP-address></code></em>
+</pre>
 
 Update system software and install `Ansible`
 ```
@@ -38,8 +40,8 @@ exit
 Copy `do_token` and `master_provision.yml` files to host `master`
 
 <pre>
-<code>    scp do_token master_provision.yml root@<\code><em><code><IP-address><\code><\em><code>:</code>
-<\pre>
+<code>scp do_token master_provision.yml root@</code><em><code><IP-address></code></em><code>:</code>
+</pre>
 
 At this point you can delete all files created so far on local computer
 ```
@@ -49,6 +51,6 @@ rm -rf sandbox
 And continue on `master` host
 
 <pre>
-<code>    ssh root@<\code><em><code><IP-address><\code><\em>
-<\pre>
+<code>ssh root@</code><em><code><IP-address></code></em>
+</pre>
 
