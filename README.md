@@ -23,7 +23,7 @@ Find and copy IP address of `master` droplet: `Control panel > Droplets`
 Login to host `master`
 
 <pre>
-<code>ssh root@</code><i><code><IP-address></code></i>
+<code>ssh root@</code><i><IP-address></i>
 </pre>
 
 Update system software and install `Ansible`
@@ -40,7 +40,7 @@ exit
 Copy `do_token` and `master_provision.yml` files to host `master`
 
 <pre>
-<code>scp do_token master_provision.yml root@</code><i><code><IP-address></code></i><code>:</code>
+<code>scp do_token master_provision.yml root@</code><i><IP-address></i><code>:</code>
 </pre>
 
 At this point you can delete all files created so far on local computer
@@ -51,6 +51,6 @@ rm -rf sandbox
 And continue on `master` host
 
 <pre>
-<code>ssh root@</code><i><code><IP-address></code></i>
+<code>ssh root@</code><i><IP-address></i>
 </pre>
 
