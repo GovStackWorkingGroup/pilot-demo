@@ -23,7 +23,7 @@ Find and copy IP address of `master` droplet: `Control panel > Droplets`
 Login to host `master`
 
 <pre>
-<code>ssh root@</code><em><IP-address></em>
+<code>ssh root@</code></pre><em><IP-address></em><pre>
 </pre>
 
 Update system software and install `Ansible`
