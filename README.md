@@ -22,9 +22,7 @@ Create host for managing your sandbox
 Find and copy IP address of `master` droplet: `Control panel > Droplets`  
 Login to host `master`
 
-<pre>
-<code>    ssh root@<\code><em><code><IP-address><\code><\em>
-<\pre>
+<pre><code>ssh root@<\code><em><code><IP-address><\code><\em><\pre>
 
 Update system software and install `Ansible`
 ```
