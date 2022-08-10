@@ -32,25 +32,52 @@ Later you can delete all files created so far on local computer (`rm -rf sandbox
 <code>ssh root@</code><em>{IP-address}</em>
 </pre>
 
-Continue with work on `master` droplet. Update system software and install `Ansible`
+Continue with work on `master` droplet. Update system software and install `Ansible`. Create empty inventory file
 
 ```
 apt update
 apt -y upgrade
 apt -y install python3-pip
 pip install ansible
+mkdir /etc/ansible
+echo localhost > /etc/ansible/hosts
 ```
 
-Create non-root accout, set SSH keys, install Terraform
+Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home
 
 ```
-ansible-playbook master_provision.yml -i localhost,
+ansible-playbook master_provision.yml
 ```
 
 Use non-root account for further work. Switch to `host` account
 
 ```
 su - host
+```
+
+Create working directory and checkout repo with scripts. Change to repo's directory
+
+```
+mkdir wkd
+cd wkd
+git clone https://github.com/GovStackWorkingGroup/sandbox.git
+cd sandbox
+```
+
+Create file `structure.yml` with description of your sandbox configuration. Generate Terraform files with infrastructure description
+
+```
+ansible-playbook prepare_tf_description.yml
+```
+
+Run Terraform to create infrastructure
+
+```
+export TF_VAR_do_token=$(cat ~/do_token)
+cd tf-files
+terraform init
+terraform plan
+terraform apply
 ```
 
 _tbc_ 

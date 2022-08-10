@@ -1,0 +1,82 @@
+sandbox: postpartum
+domain: "{{ sandbox }}.egovstack-sandbox.net"
+instance: egovstack
+members:
+- name: Management
+  class: GOV
+  code: 0
+  applications:
+  - id: misp
+    connection: http
+- name: MinistryOfInterior
+  class: GOV
+  code: 7003
+  applications:
+  - id: CitizensRegistry
+    services:
+    - id: mcts
+      spec_url: https://raw.githubusercontent.com/aleksander-reitsakas/pub/main/m3x.json
+      service_url: http://securityserver/r1/egovstack/GOV/7001/DigitalRegistries/mcts11
+      rights:
+      - member: LocalMunicipality
+        application: Registration
+      - member: Management
+        application: 0
+      - member: MinistryOfHealth
+        application: DigitalRegistries
+  - id: ID_Verification
+    services:
+    - id: authenticate
+      spec_url: https://raw.githubusercontent.com/aleksander-reitsakas/pub/main/id1.json
+      service_url: https://id1.ext.egovstack.net/api
+      rights:
+      - member: LocalMunicipality
+        application: Registration
+      - member: LocalMunicipality
+        application: test01
+      - member: Management
+        application: misp
+- name: MinistryOfHealth
+  class: GOV
+  code: 7001
+  applications:
+  - id: DigitalRegistries
+    services:
+    - id: mcts11
+      spec_url: https://gdb.er4.ext.egovstack.net/swaggerx.json
+      service_url: https://gdb.er4.ext.egovstack.net
+      rights:
+      - member: LocalMunicipality
+        application: Registration
+      - member: LocalMunicipality
+        application: test01
+      - member: Management
+        application: misp
+  - id: etraining
+    services:
+    - id: externalmcts
+      spec_url: https://gdb.training.eregistrations.org/swaggerx.json
+      service_url: https://gdb.training.eregistrations.org/
+      rights:
+      - member: LocalMunicipality
+        application: Registration
+      - member: LocalMunicipality
+        application: test01
+      - member: Management
+        application: misp
+  - id: workflow
+    services:
+    - id: main
+      spec_url: https://raw.githubusercontent.com/GovStackWorkingGroup/bb-workflow/main/api/swagger.yaml
+      service_url: https://virtserver.swaggerhub.com/GovStack/Workflow-BB/1.0.0
+      rights:
+      - member: Management
+        application: misp
+- name: LocalMunicipality
+  class: GOV
+  code: 7002
+  applications:
+  - id: Registration
+    connection: http
+  - id: test01
+    connection: http

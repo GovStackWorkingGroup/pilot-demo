@@ -37,3 +37,10 @@
     apt:
       name: terraform
 
+  - name: Copy token to user host
+    copy:
+      remote_src: yes
+      src: /root/do_token
+      dest: /home/host/do_token
+      owner: host
+      mode: 0600

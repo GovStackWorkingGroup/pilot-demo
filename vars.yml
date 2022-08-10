@@ -1,0 +1,15 @@
+region: ams3
+droplet_image:
+  cs: ubuntu-20-04-x64
+  cp: ubuntu-20-04-x64
+  ss: ubuntu-20-04-x64
+  ca: ubuntu-20-04-x64
+  mi: ubuntu-18-04-x64
+  op: ubuntu-20-04-x64
+droplet_size:
+  cs: s-1vcpu-2gb
+  cp: s-1vcpu-1gb
+  ss: s-2vcpu-4gb
+  ca: s-1vcpu-1gb
+  mi: s-2vcpu-4gb
+  op: s-2vcpu-4gb
