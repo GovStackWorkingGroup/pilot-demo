@@ -1,5 +1,54 @@
 ---
-- hosts: localhost
+- name: Part to run as root
+  hosts: localhost
+  connection: ssh
+  remote_user: root
+
+  vars_files:
+  - structure.yml
+
+  tasks:
+
+  - name: Describe zone file
+    ansible.builtin.blockinfile:
+      path: /etc/bind/named.conf.local
+      insertafter:
+      block: |
+        zone "{{ domain }}." {
+          type master;
+          file "/etc/bind/zones/db.{{ domain }}";
+          allow-update { 127.0.0.1; };
+        };
+    notify: restart BIND
+
+  - name: Create empty zone file
+    copy:
+      dest: /etc/bind/zones/db.{{ domain }}
+      force: no
+      content: |
+        $ORIGIN {{ domain }}.
+        $TTL 3600    ; 1 hour
+        {{ domain }}. IN SOA  ns1.{{ domain }}. root.{{ domain }}. (
+          1          ; serial
+          3600       ; refresh (1 hour)
+          1800       ; retry (30 minutes)
+          604800     ; expire (1 week)
+          43200      ; minimum (12 hours)
+          )
+        @            IN NS ns1.{{ domain }}.
+        $TTL 3600    ; 1 hour
+        ns1          IN A {{ ansible_eth0.ipv4.address }}
+    notify: restart BIND
+
+  handlers:
+
+  - name: restart BIND
+    ansible.builtin.service:
+      name: named
+      state: restarted
+
+- name: Part to run as host
+  hosts: localhost
   connection: local
 
   vars_files:
@@ -20,6 +69,14 @@
       group: host
       mode: u=rwx,g=x,o=x
 
+  - name: Create directory for droplets module
+    file:
+      path: "{{ files_dir }}/members"
+      state: directory
+      owner: host
+      group: host
+      mode: u=rwx,g=x,o=x
+
   - name: Create main file
     copy:
       dest: "{{ files_dir }}/main.tf"
@@ -29,27 +86,70 @@
             digitalocean = {
               source = "digitalocean/digitalocean"
             }
-            environment = {
-              source = "EppO/environment"
-            }
           }
         }
-        
+
         variable "do_token" {}
-        
+
         provider "digitalocean" {
           token = var.do_token
         }
 
-        provider "environment" {}
-        
-        data "environment_variables" "home" {
-          filter    = "HOME"
+        module "members" {
+          source = "./members"
+          do_token = var.do_token
         }
-        
+
+        # Get list of all droplets
+        data "digitalocean_droplets" "all" {
+          depends_on = [module.members]
+        }
+
+        # Create Ansible inventory
+        resource "local_file" "ansible_inventory" {
+          content = templatefile("../templates/hosts.tmpl",
+            {
+              domain  = "{{ domain }}",
+              ss_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "ss")],
+              cs_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "cs")],
+              ca_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "ca")],
+              misp_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "misp")],
+            }
+          )
+          filename = "../hosts"
+          file_permission = "0664"
+        }
+
+  - name: Create main file for members
+    copy:
+      dest: "{{ files_dir }}/members/main.tf"
+      content: |
+        terraform {
+          required_providers {
+            digitalocean = {
+              source = "digitalocean/digitalocean"
+            }
+            dns = {
+              source = "hashicorp/dns"
+            }
+          }
+        }
+
+        variable "do_token" {}
+
+        provider "digitalocean" {
+          token = var.do_token
+        }
+
+        provider "dns" {
+          update {
+            server = "127.0.0.1"
+          }
+        }
+
         resource "digitalocean_ssh_key" "default" {
           name       = "host@master"
-          public_key = file("${data.environment_variables.home.items["HOME"]}/.ssh/id_rsa.pub")
+          public_key = file(pathexpand("~/.ssh/id_rsa.pub"))
         }
 
         resource "digitalocean_project" "project" {
@@ -59,39 +159,10 @@
           environment = "Development"
         }
 
-  - name: Create domain and register 'master'
-    copy:
-      dest: "{{ files_dir }}/domain.tf"
-      content: |
-        resource "digitalocean_domain" "default" {
-          name = "{{ domain }}"
-        }
-
-        # Assign domain to project
-        resource "digitalocean_project_resources" "default-pr" {
-          project = digitalocean_project.project.id
-          resources = [
-            digitalocean_domain.default.urn,
-          ]
-        }
-
-        # Get droplet details
-        data "digitalocean_droplet" "master" {
-          name = "master"
-        }
-
-        # Add an A record of master to the domain
-        resource "digitalocean_record" "master" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "master"
-          value  = data.digitalocean_droplet.master.ipv4_address
-        }
-
   - name: Generate Members VPC and Security Server
     with_items: "{{ members }}"
     copy:
-      dest: "{{ files_dir }}/{{ item.class }}-{{ item.code }}.tf"
+      dest: "{{ files_dir }}/members/{{ item.class }}-{{ item.code }}.tf"
       content: |
         # create member vpc
         resource "digitalocean_vpc" "{{ item.class }}-{{ item.code }}-vpc" {
@@ -103,6 +174,7 @@
         resource "digitalocean_droplet" "{{ item.class }}-{{ item.code }}-ss" {
           image  = "{{ droplet_image.ss }}"
           name   = "{{ item.class }}-{{ item.code }}-ss"
+          tags   = ["ss"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ss }}"
           vpc_uuid = digitalocean_vpc.{{ item.class }}-{{ item.code }}-vpc.id
@@ -110,21 +182,22 @@
         }
 
         # Add an A record of public address to the domain
-        resource "digitalocean_record" "{{ item.class }}-{{ item.code }}-ss" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "{{ item.class }}-{{ item.code }}-ss"
-          value  = digitalocean_droplet.{{ item.class }}-{{ item.code }}-ss.ipv4_address
+        resource "dns_a_record_set" "{{ item.class }}-{{ item.code }}-ss" {
+          zone = "{{ domain }}."
+          name = "{{ item.class }}-{{ item.code }}-ss"
+          addresses = [ digitalocean_droplet.{{ item.class }}-{{ item.code }}-ss.ipv4_address ]
+          ttl = 300
         }
 
         # Add an A record of private address to the domain
-        resource "digitalocean_record" "{{ item.class }}-{{ item.code }}-ss-in" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "{{ item.class }}-{{ item.code }}-ss.in"
-          value  = digitalocean_droplet.{{ item.class }}-{{ item.code }}-ss.ipv4_address_private
+        resource "dns_a_record_set" "{{ item.class }}-{{ item.code }}-ss-in" {
+          zone = "{{ domain }}."
+          name = "{{ item.class }}-{{ item.code }}-ss.in"
+          addresses = [ digitalocean_droplet.{{ item.class }}-{{ item.code }}-ss.ipv4_address_private ]
+          ttl = 300
         }
 
+        # Assign ss to project
         resource "digitalocean_project_resources" "{{ item.class }}-{{ item.code }}-pr" {
           project = digitalocean_project.project.id
           resources = [
@@ -134,11 +207,11 @@
 
   - name: Generate Centre
     copy:
-      dest: "{{ files_dir }}/centre.tf"
+      dest: "{{ files_dir }}/members/centre.tf"
       content: |
         # create Centre vpc
         resource "digitalocean_vpc" "cs-vpc" {
-          name     = "CentralServices"
+          name     = "Centre"
           region   = "{{ region }}"
         }
 
@@ -146,6 +219,7 @@
         resource "digitalocean_droplet" "ss" {
           image  = "{{ droplet_image.ss }}"
           name   = "ss"
+          tags   = ["ss"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ss }}"
           vpc_uuid = digitalocean_vpc.cs-vpc.id
@@ -153,25 +227,26 @@
         }
 
         # Add an A record of public address of ss to the domain
-        resource "digitalocean_record" "ss" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "ss"
-          value  = digitalocean_droplet.ss.ipv4_address
+        resource "dns_a_record_set" "ss" {
+          zone = "{{ domain }}."
+          name = "ss"
+          addresses = [ digitalocean_droplet.ss.ipv4_address ]
+          ttl = 300
         }
 
         # Add an A record of private address of ss to the domain
-        resource "digitalocean_record" "ss-in" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "ss.in"
-          value  = digitalocean_droplet.ss.ipv4_address_private
+        resource "dns_a_record_set" "ss-in" {
+          zone = "{{ domain }}."
+          name = "ss.in"
+          addresses = [ digitalocean_droplet.ss.ipv4_address_private ]
+          ttl = 300
         }
 
         # create cs
         resource "digitalocean_droplet" "cs" {
           image  = "{{ droplet_image.cs }}"
           name   = "cs"
+          tags   = ["cs"]
           region = "{{ region }}"
           size   = "{{ droplet_size.cs }}"
           vpc_uuid = digitalocean_vpc.cs-vpc.id
@@ -179,25 +254,26 @@
         }
 
         # Add an A record of public address of cs to the domain
-        resource "digitalocean_record" "cs" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "cs"
-          value  = digitalocean_droplet.cs.ipv4_address
+        resource "dns_a_record_set" "cs" {
+          zone = "{{ domain }}."
+          name = "cs"
+          addresses = [ digitalocean_droplet.cs.ipv4_address ]
+          ttl = 300
         }
 
         # Add an A record of private address of cs to the domain
-        resource "digitalocean_record" "cs-in" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "cs.in"
-          value  = digitalocean_droplet.cs.ipv4_address_private
+        resource "dns_a_record_set" "cs-in" {
+          zone = "{{ domain }}."
+          name = "cs.in"
+          addresses = [ digitalocean_droplet.cs.ipv4_address_private ]
+          ttl = 300
         }
 
         # create ca
         resource "digitalocean_droplet" "ca" {
           image  = "{{ droplet_image.ca }}"
           name   = "ca"
+          tags   = ["ca"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ca }}"
           vpc_uuid = digitalocean_vpc.cs-vpc.id
@@ -205,21 +281,22 @@
         }
 
         # Add an A record of public address of cs to the domain
-        resource "digitalocean_record" "ca" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "ca"
-          value  = digitalocean_droplet.ca.ipv4_address
+        resource "dns_a_record_set" "ca" {
+          zone = "{{ domain }}."
+          name = "ca"
+          addresses = [ digitalocean_droplet.ca.ipv4_address ]
+          ttl = 300
         }
 
         # Add an A record of private address of cs to the domain
-        resource "digitalocean_record" "ca-in" {
-          domain = digitalocean_domain.default.id
-          type   = "A"
-          name   = "ca.in"
-          value  = digitalocean_droplet.ca.ipv4_address_private
+        resource "dns_a_record_set" "ca-in" {
+          zone = "{{ domain }}."
+          name = "ca.in"
+          addresses = [ digitalocean_droplet.cs.ipv4_address_private ]
+          ttl = 300
         }
 
+        # Assign resources to project
         resource "digitalocean_project_resources" "cs-pr" {
           project = digitalocean_project.project.id
           resources = [
@@ -228,3 +305,4 @@
             digitalocean_droplet.ca.urn,
           ]
         }
+

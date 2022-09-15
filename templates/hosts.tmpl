@@ -1,0 +1,49 @@
+#central servers (ubuntu)
+[cs_servers]
+%{ for ix in cs_list ~}
+${ ix }.${ domain }
+%{ endfor ~}
+
+#security servers (ubuntu or rhel)
+[ss_servers]
+%{ for ix in ss_list ~}
+${ ix }.${ domain }
+%{ endfor ~}
+
+#configuration proxies (ubuntu)
+[cp_servers]
+#cp.in.egovstack.net ansible_ssh_user=host
+
+#certification authority, time stamping authority and ocsp service server (ubuntu)
+[ca_servers]
+%{ for ix in ca_list ~}
+${ ix }.${ domain }
+%{ endfor ~}
+
+#MISP
+[misp_servers]
+%{ for ix in misp_list ~}
+${ ix }.${ domain }
+%{ endfor ~}
+
+#Monitoring
+[op_servers]
+#op.egovstack.net
+
+#a custom super group for overriding variable defaults
+[example:children]
+cs_servers
+ss_servers
+cp_servers
+ca_servers
+misp_servers
+op_servers
+
+### vars ###
+
+[ss_servers:vars]
+variant=vanilla
+
+[all:vars]
+# extra locales to enable on Ubuntu servers
+#extra_locales=['fi_FI.UTF-8', 'is_IS.UTF-8']

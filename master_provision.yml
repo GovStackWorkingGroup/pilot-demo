@@ -13,6 +13,13 @@
       generate_ssh_key: yes
       ssh_key_comment: host@master
 
+  - name: Add host SSH key to root
+    authorized_key:
+      user: root
+      state: present
+      key: "{{ item }}"
+    with_lines: cat /home/host/.ssh/id_rsa.pub
+
   - name: Add same SSH keys as root has
     authorized_key:
       user: host
@@ -44,3 +51,49 @@
       dest: /home/host/do_token
       owner: host
       mode: 0600
+
+  - name: Install BIND
+    apt:
+      name:
+      - bind9
+      - bind9utils
+      - bind9-doc
+      - dnsutils
+
+  - name: Set BIND options
+    ansible.builtin.blockinfile:
+      path: /etc/bind/named.conf.options
+      insertafter: "directory"
+      block: |
+        allow-query-cache { none; };
+        recursion no;
+        allow-update { 127.0.0.1; };
+    notify: restart BIND
+
+  - name: Create directory for zone files
+    file:
+      path: /etc/bind/zones
+      state: directory
+      owner: root
+      group: bind
+      mode: u=rwx,g=rx,o=rx
+
+  - name: Update AppArmor
+    ansible.builtin.blockinfile:
+      path: /etc/apparmor.d/usr.sbin.named
+      insertafter: "/etc/bind/[*]"
+      block: |
+        /etc/bind/zones/** rw,
+    notify: restart AppArmor
+
+  handlers:
+
+  - name: restart AppArmor
+    ansible.builtin.service:
+      name: apparmor
+      state: restarted
+
+  - name: restart BIND
+    ansible.builtin.service:
+      name: named
+      state: restarted

@@ -28,5 +28,14 @@ override.tf.json
 # Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
 # example: *tfplan*
 
+# Generated files
+tf-files
+
 # DigitalOcean token
 do_token
+
+# Ansible inventory
+hosts
+
+# GovStack structure
+structure.yml
