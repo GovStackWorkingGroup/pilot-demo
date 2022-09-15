@@ -78,6 +78,12 @@
       group: bind
       mode: u=rwx,g=rx,o=rx
 
+  - name: Change resolved.conf
+    ansible.builtin.lineinfile:
+      path: /etc/systemd/resolved.conf
+      regexp: '^#DNS='
+      line: DNS=127.0.0.1
+
   - name: Update AppArmor
     ansible.builtin.blockinfile:
       path: /etc/apparmor.d/usr.sbin.named

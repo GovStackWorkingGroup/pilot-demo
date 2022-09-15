@@ -43,7 +43,7 @@ mkdir /etc/ansible
 echo localhost > /etc/ansible/hosts
 ```
 
-Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home
+Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home, set up resolver.conf
 
 ```
 ansible-playbook master_provision.yml
@@ -78,6 +78,12 @@ cd tf-files
 terraform init
 terraform plan
 terraform apply
+```
+
+Initialize known_hosts
+
+```
+./store_known_hosts.sh
 ```
 
 _tbc_ 
