@@ -1,0 +1,41 @@
+---
+- hosts: all
+  remote_user: root
+  vars_files:
+  - /etc/netplan/50-cloud-init.yaml
+  - /home/host/vars_host_hash.yml
+
+  tasks:
+
+  - name: Create the non-root user account
+    user:
+      name: host
+      password: "{{ host_hash }}"
+      shell: /bin/bash
+      groups: sudo
+      append: yes
+      generate_ssh_key: yes
+      ssh_key_comment: "host@{{ inventory_hostname_short }}"
+
+  - name: Read authorized keys of root
+    command: cat /root/.ssh/authorized_keys
+    register: root_keys
+
+  - name: Add same SSH keys as root has
+    authorized_key:
+      user: host
+      state: present
+      key: "{{ item }}"
+    loop: "{{ root_keys.stdout_lines }}"
+
+  - name: Upgrading all packages
+    apt:
+      update_cache: yes
+      upgrade: yes
+ 
+  - name: Change resolved.conf
+    ansible.builtin.lineinfile:
+      path: /etc/systemd/resolved.conf
+      regexp: "^#DNS="
+      line: "DNS={{ network.ethernets.eth0.addresses[0].split('/')[0] }}"
+
