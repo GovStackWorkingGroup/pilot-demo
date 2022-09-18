@@ -109,7 +109,6 @@
         resource "local_file" "ansible_inventory" {
           content = templatefile("../templates/hosts.tmpl",
             {
-              domain  = "{{ domain }}",
               ss_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "ss")],
               cs_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "cs")],
               ca_list = [for ix in data.digitalocean_droplets.all.droplets : ix.name if contains(ix.tags, "ca")],
@@ -173,7 +172,7 @@
         # create member ss
         resource "digitalocean_droplet" "{{ item.class }}-{{ item.code }}-ss" {
           image  = "{{ droplet_image.ss }}"
-          name   = "{{ item.class }}-{{ item.code }}-ss"
+          name   = "{{ item.class }}-{{ item.code }}-ss.{{ domain }}"
           tags   = ["ss"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ss }}"
@@ -218,7 +217,7 @@
         # create Centre ss
         resource "digitalocean_droplet" "ss" {
           image  = "{{ droplet_image.ss }}"
-          name   = "ss"
+          name   = "ss.{{ domain }}"
           tags   = ["ss"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ss }}"
@@ -245,7 +244,7 @@
         # create cs
         resource "digitalocean_droplet" "cs" {
           image  = "{{ droplet_image.cs }}"
-          name   = "cs"
+          name   = "cs.{{ domain }}"
           tags   = ["cs"]
           region = "{{ region }}"
           size   = "{{ droplet_size.cs }}"
@@ -272,7 +271,7 @@
         # create ca
         resource "digitalocean_droplet" "ca" {
           image  = "{{ droplet_image.ca }}"
-          name   = "ca"
+          name   = "ca.{{ domain }}"
           tags   = ["ca"]
           region = "{{ region }}"
           size   = "{{ droplet_size.ca }}"

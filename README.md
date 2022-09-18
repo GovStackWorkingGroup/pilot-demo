@@ -2,7 +2,8 @@
 Setup scripts of sandbox environment of GovStack
 
 # How to set up GovStack sandbox
-Checkout repo with scripts and change to repo's directory
+On your local computer checkout repo with scripts and change to repo's directory
+
 ```
 git clone https://github.com/GovStackWorkingGroup/sandbox.git
 cd sandbox
@@ -10,7 +11,7 @@ cd sandbox
 Create account in DigitalOcean <https://cloud.digitalocean.com/registrations/new>. Be ready to provide credit card details.
 
 Generate API key. On DigitalOcean web site: `Control panel` > `API` > `Generate new token`  
-`Control panel` can be reached pressing on logo.
+`Control panel` can be reached pressing on DigitalOcean logo.
 
 Enter token name, e.g. `sbx0`. Select both scopes `read` and `write`. Press `Generate token`.
 Copy token and store it in file `do_token` NB! DigitalOcean do not show you content of the token after this point.
@@ -39,11 +40,14 @@ apt update
 apt -y upgrade
 apt -y install python3-pip
 pip install ansible
+pip install passlib
 mkdir /etc/ansible
 echo localhost > /etc/ansible/hosts
 ```
 
-Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home, set up resolver.conf
+Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home, set up resolver.conf.s
+You will be prompted for password wich will be assigned to 'host' account of `master` droplet and all other created droplets.
+The hash of this password will be stored in file `vars_host_passwd_hash.yml`
 
 ```
 ansible-playbook master_provision.yml
@@ -85,5 +89,12 @@ Initialize known_hosts
 ```
 ./store_known_hosts.sh
 ```
+
+Create non-root accout, set SSH keys, upgrade system software, set up resolver.conf on all created infrastructure
+
+```
+ansible-playbook privision.yml -i hosts
+```
+
 
 _tbc_ 

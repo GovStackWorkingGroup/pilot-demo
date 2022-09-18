@@ -2,30 +2,42 @@
 - hosts: localhost
   connection: local
 
+  vars_prompt:
+  - name: host_hash
+    prompt: Enter password for user 'host'
+    private: yes
+    encrypt: sha512_crypt
+    confirm: yes
+
   tasks:
+
+  - name: Store host's password hash in vars file
+    copy:
+      content: "host_hash: {{ host_hash }}"
+      dest: /home/host/vars_host_hash.yml
+      owner: host
+      mode: 0600
 
   - name: Create the non-root user account
     user:
       name: host
+      password: "{{ host_hash }}"
       shell: /bin/bash
       groups: sudo
       append: yes
       generate_ssh_key: yes
       ssh_key_comment: host@master
 
-  - name: Add host SSH key to root
-    authorized_key:
-      user: root
-      state: present
-      key: "{{ item }}"
-    with_lines: cat /home/host/.ssh/id_rsa.pub
+  - name: Read authorized keys of root
+    command: cat /root/.ssh/authorized_keys
+    register: root_keys
 
   - name: Add same SSH keys as root has
     authorized_key:
       user: host
       state: present
       key: "{{ item }}"
-    with_lines: cat /root/.ssh/authorized_keys
+    loop: "{{ root_keys.stdout_lines }}"
 
   - name: Upgrading all packages
     apt:
