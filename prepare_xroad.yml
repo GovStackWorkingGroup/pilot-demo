@@ -1,0 +1,22 @@
+---
+- name: Prepare to Install X-Road
+  hosts: localhost
+  connection: local
+  
+  vars_files: ../../vars_host_hash.yml
+
+  tasks:
+
+  - name: Clone X-Road repo
+    git:
+      repo: https://github.com/nordic-institute/X-Road.git
+      dest: X-Road
+      force: yes
+
+  - name: Substitute password hash
+    local_action:
+      module: ansible.builtin.lineinfile
+      path: X-Road/ansible/roles/xroad-base/defaults/main.yml
+      regexp: "^xroad_ui_user_password: "
+      line: 'xroad_ui_user_password: "{{ host_hash }}"'
+

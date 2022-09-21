@@ -47,7 +47,7 @@ echo localhost > /etc/ansible/hosts
 
 Create non-root accout, set SSH keys, install Terraform, copy token file to user `host` home, set up resolver.conf.s
 You will be prompted for password wich will be assigned to 'host' account of `master` droplet and all other created droplets.
-The hash of this password will be stored in file `vars_host_passwd_hash.yml`
+The hash of this password will be stored in file `vars_host_hash.yml`
 
 ```
 ansible-playbook master_provision.yml
@@ -96,5 +96,17 @@ Create non-root accout, set SSH keys, upgrade system software, set up resolver.c
 ansible-playbook privision.yml -i hosts
 ```
 
+Prepare to installation X-Road, clone and update X-Road repo.
+
+```
+ansible-playbook prepare_xroad.yml
+```
+
+Change to working directory in repo and start intallation. The script will ask password for account 'host' you entered on one of previous steps.
+
+```
+cd X-Road/ansible
+ansible-playbook xroad_init.yml -i ../../hosts -K
+```
 
 _tbc_ 
